@@ -17,7 +17,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-rule bg-paper/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:gap-6 sm:px-6">
+        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:gap-6 sm:px-6">
           <Link to="/" aria-label="Bolagsvakt home" className="shrink-0"><Wordmark /></Link>
           <Search />
           <div className="ml-auto flex shrink-0 items-center gap-4 sm:gap-5">
@@ -28,7 +28,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 Registry {formatDate(snapshot)}
               </span>
             )}
-            <ThemeToggle />
+            <span className="hidden sm:inline"><ThemeToggle /></span>
             <button
               className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-3 hover:text-ink"
               onClick={() => signOut().then(() => window.location.assign('/login'))}
@@ -38,7 +38,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">{children}</main>
     </div>
   )
 }
@@ -87,7 +87,7 @@ function Search() {
         aria-expanded={shown.length > 0}
         aria-controls="search-results"
         aria-label="Search companies by name or organisation number"
-        placeholder="Search 982,000 companies"
+        placeholder="Search companies"
         className="w-full rounded-[4px] border border-rule bg-card px-3 py-1.5 pr-8 text-sm text-ink placeholder:text-ink-3 focus:border-ink-3 focus:outline-none"
       />
       <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-[3px] border border-rule px-1 font-mono text-[10px] text-ink-3 sm:block">/</kbd>

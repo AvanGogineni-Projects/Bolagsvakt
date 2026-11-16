@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api, formatOrgNr, type CompanyPage } from '../api'
-import { STATUS_LABEL, eventLabel, formatDate, outcomeKnown, riskBand } from '../labels'
+import { STATUS_LABEL, eventLabel, formatDate, outcomeKnown, reportSigns, riskBand } from '../labels'
 import { Button, ErrorNote, RiskLadder, SkeletonRows, StatusStamp } from '../ui'
 
 const LEGAL_FORM: Record<string, string> = {
@@ -25,7 +25,7 @@ export function Company() {
   const known = outcomeKnown(c.status)
   const band = riskBand(c.times_average)
   const calm = band === 'low' || band === 'normal'
-  const reasons = c.reasons ?? []
+  const reasons = reportSigns(c.reasons)
 
   return (
     <article className="space-y-10">

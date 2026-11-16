@@ -79,7 +79,7 @@ export function Watchlist() {
             <Kpi label="Elevated" value={counts.elevated} tone={counts.elevated ? 'ochre' : undefined} hint="2–5× the average risk" />
           </dl>
 
-          <div className="grid gap-12 xl:grid-cols-[1fr_300px]">
+          <div className="grid gap-10 xl:grid-cols-[1fr_260px]">
             <section className="min-w-0">
               <div className="mb-3 flex items-center justify-between gap-4">
                 <div role="tablist" aria-label="Filter companies" className="flex gap-5">
@@ -122,8 +122,8 @@ function CompanyTable({ rows, onRemove }: { rows: WatchedCompany[]; onRemove: (o
       <table className="hidden w-full border-collapse text-left md:table">
         <thead>
           <tr className="border-y border-rule">
-            {['Company', 'Status', 'Risk', 'Main warning sign', 'Report'].map((h) => (
-              <th key={h} scope="col" className="eyebrow py-2.5 pr-4 font-normal">{h}</th>
+            {['Company', 'Status', 'Risk', 'Warning sign', 'Report'].map((h) => (
+              <th key={h} scope="col" className="eyebrow whitespace-nowrap py-2.5 pr-4 font-normal">{h}</th>
             ))}
             <th scope="col" className="py-2.5"><span className="sr-only">Remove</span></th>
           </tr>
@@ -135,7 +135,7 @@ function CompanyTable({ rows, onRemove }: { rows: WatchedCompany[]; onRemove: (o
             return (
               <tr key={r.org_nr} onClick={() => navigate(`/company/${r.org_nr}`)}
                   className="group cursor-pointer border-b border-rule align-top transition-colors hover:bg-card">
-                <td className="py-4 pr-4">
+                <td className="min-w-[230px] py-4 pr-4">
                   <Link to={`/company/${r.org_nr}`} onClick={(e) => e.stopPropagation()}
                         className="font-serif text-[17px] leading-snug text-ink decoration-rule underline-offset-4 group-hover:underline">
                     {r.name}
@@ -144,7 +144,7 @@ function CompanyTable({ rows, onRemove }: { rows: WatchedCompany[]; onRemove: (o
                 </td>
                 <td className="py-4 pr-4 pt-[18px]"><StatusStamp status={r.status} /></td>
                 <td className="py-4 pr-4 pt-[19px]"><RiskLadder timesAverage={r.times_average} status={r.status} /></td>
-                <td className={`max-w-[260px] py-4 pr-4 text-sm leading-snug ${quiet ? 'text-ink-3' : 'text-ink-2'}`}>{reason}</td>
+                <td className={`max-w-[240px] py-4 pr-4 text-[13px] leading-snug ${quiet ? 'text-ink-3' : 'text-ink-2'}`}>{reason}</td>
                 <td className="whitespace-nowrap py-4 pr-2 pt-[18px] font-mono text-[11px] text-ink-3">
                   {r.fiscal_end ? `FY ${r.fiscal_end.slice(0, 4)}` : '—'}
                 </td>

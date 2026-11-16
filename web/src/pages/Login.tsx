@@ -47,7 +47,7 @@ export function Login() {
         </div>
         <div className="my-14 max-w-xl lg:my-0">
           <p className="eyebrow">Company watch · Sweden</p>
-          <h1 className="mt-4 font-serif text-[2.6rem] leading-[1.05] tracking-tight sm:text-6xl">
+          <h1 className="mt-4 font-serif text-[2.6rem] leading-[1.05] tracking-tight sm:text-6xl xl:text-7xl">
             Know which customers won’t pay, <em className="text-signal">before</em> they don’t.
           </h1>
           <p className="mt-6 max-w-md text-[15px] leading-relaxed text-ink-2">
@@ -90,7 +90,7 @@ export function Login() {
               <span className="eyebrow">Work email</span>
               <input
                 type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                className="mt-2 w-full border-0 border-b border-rule-strong bg-transparent px-0 py-2 text-lg text-ink placeholder:text-ink-3 focus:border-signal focus:outline-none focus:ring-0"
+                className="mt-2 w-full border-0 border-b border-rule-strong bg-transparent px-0 py-2 text-lg text-ink placeholder:text-ink-3 focus:border-signal focus:outline-none focus-visible:outline-none focus:ring-0"
                 placeholder="you@company.se"
               />
             </label>
@@ -133,7 +133,7 @@ export function CreateOrg({ onCreated }: { onCreated: (o: { id: string; name: st
         <span className="eyebrow">Company name</span>
         <input
           required maxLength={200} value={name} onChange={(e) => setName(e.target.value)} autoFocus
-          className="mt-2 w-full border-0 border-b border-rule-strong bg-transparent px-0 py-2 text-xl text-ink placeholder:text-ink-3 focus:border-signal focus:outline-none focus:ring-0"
+          className="mt-2 w-full border-0 border-b border-rule-strong bg-transparent px-0 py-2 text-xl text-ink placeholder:text-ink-3 focus:border-signal focus:outline-none focus-visible:outline-none focus:ring-0"
           placeholder="Grossisten i Lund AB"
         />
       </label>

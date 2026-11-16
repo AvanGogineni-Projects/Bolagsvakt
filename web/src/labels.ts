@@ -42,9 +42,17 @@ export function mainReason(status: Status, timesAverage: number | null, reasons:
   if (outcomeKnown(status)) return STATUS_LABEL[status]
   if (timesAverage === null) return 'No digital annual report to read'
   const band = riskBand(timesAverage)
-  if (band === 'low' || band === 'normal' || !reasons?.length) return 'No major warning signs'
-  return reasons[0]
+  const signs = reportSigns(reasons)
+  if (band === 'low' || band === 'normal' || !signs.length) return 'No major warning signs'
+  return signs[0]
 }
+
+// risk.py puts a company's ongoing proceedings first in its reasons. They come from the
+// register, not the annual report, and the status stamp already shows them.
+const PROCEEDING_REASONS = new Set(['In bankruptcy', 'In liquidation', 'In company reconstruction'])
+
+/** The warning signs that come from the annual report itself. */
+export const reportSigns = (reasons: string[] | null) => (reasons ?? []).filter((r) => !PROCEEDING_REASONS.has(r))
 
 // The event names the pipeline writes (history.py).
 const EVENT_LABELS: Record<string, string> = {

@@ -25,8 +25,12 @@ const STAMP: Record<Status, string> = {
   deregistered: 'text-ink-3 border-rule',
 }
 
-/** Registry status as a rubber stamp: square, uppercase, outlined. */
+/** Registry status as a rubber stamp: square, uppercase, outlined. Only when something happened:
+ *  "Active" on every row would be noise, so it's plain text. */
 export function StatusStamp({ status }: { status: Status }) {
+  if (status === 'active') {
+    return <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-3">Active</span>
+  }
   return (
     <span
       className={`inline-flex items-center whitespace-nowrap rounded-[3px] border px-1.5 py-0.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.08em] ${STAMP[status]}`}
