@@ -67,11 +67,44 @@ What makes it hold up:
   download is retried with backoff, and a part that still fails is left for the next run.
 - **Raw zips not kept:** [ADR 0002](docs/adr/0002-annual-reports-not-kept-as-bronze.md) explains why.
 
+## Status: milestone 3 (risk score)
+
+Each company gets 14 yes/no warning signs an accountant would recognise (negative equity, equity
+below half the share capital, annual report filed after the 7-month legal deadline, cash under
+10% of short-term debts, losses, falling revenue...). A logistic regression learns how much each
+sign matters from what actually happened to companies after they filed. A company's reasons are
+its active signs, strongest first. The weights live in [`models/risk_v1.json`](models/risk_v1.json),
+so every score can be traced.
+
+**Validation, out of time:** trained on reports filed in 2024 weeks 1–26 and tested on weeks
+27–52 (149,572 reports, 4,398 later bankruptcies). Outcomes come from the registry: a bankruptcy
+started or concluded after the report was filed.
+
+| | Model | "Negative equity" rule alone |
+|---|---|---|
+| AUC | **0.784** | 0.609 |
+| Share of bankruptcies in the riskiest 10% | **41%** | 28% |
+| Riskiest 1% that actually went bankrupt | **23.6%** (8× the 2.9% average) | 8.4% |
+
+Strongest signs: late filing, negative equity, low cash.
+
+**Scoring:** after backfilling every report filed in 2024–2026 (883 weekly parts, 1,253,798
+reports, 167 rejected filings), 508,205 active companies are scored on their latest report,
+93% of them on a 2025 or 2026 report (`gold/risk_scores.parquet`). 9,725 are already in
+bankruptcy, liquidation or reconstruction, and that is their first reason. 24,135 more score 5×
+the average or higher.
+
+Known limits:
+- The label is a bankruptcy recorded *after* filing. A finished bankruptcy only keeps its
+  deregistration date, so its start date is approximated by the filing order.
+
 ## Run
 
 ```bash
 python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m bolagsvakt.pipeline          # download this week's snapshot and apply it
-.venv/bin/python -m bolagsvakt.annual_reports --latest 4   # or --year 2025, or --list
+.venv/bin/python -m bolagsvakt.annual_reports --year 2024 --workers 4   # or --latest 4, or --list
+.venv/bin/python -m bolagsvakt.risk train         # -> models/risk_v1.json with its validation
+.venv/bin/python -m bolagsvakt.risk score         # -> data/gold/risk_scores.parquet
 .venv/bin/ruff check src tests && .venv/bin/pytest -q
 ```
