@@ -57,7 +57,7 @@ def list_parts(client: httpx.Client) -> list[tuple[str, int]]:
     out, marker = [], None
     while True:
         params = {"prefix": "arsredovisningar/", "delimiter": "\\"} | ({"marker": marker} if marker else {})
-        xml = client.get(BASE, params=params).raise_for_status().text
+        xml = retry(lambda p=params: client.get(BASE, params=p).raise_for_status().text)
         out += [(k, int(s)) for k, s in zip(re.findall(r"<Key>([^<]+)</Key>", xml),
                                                re.findall(r"<Size>(\d+)</Size>", xml))]
         nxt = re.findall(r"<NextMarker>([^<]+)</NextMarker>", xml)
@@ -144,19 +144,12 @@ def write_part(tables: dict[str, list[dict]], out_dir: Path) -> None:
     tmp.rename(out_dir)
 
 
-def download(client: httpx.Client, url: str, dest, *, retries: int = 4, sleep=time.sleep) -> None:
-    """Stream url into the open file dest. The server drops long downloads now and then, so
-    transport errors and 5xx are retried from scratch with backoff; 4xx fails at once."""
+def retry(call, *, retries: int = 4, sleep=time.sleep):
+    """Run call() again with backoff on transport errors and 5xx (the server drops long downloads
+    and answers 503 under load now and then); 4xx fails at once."""
     for attempt in range(retries + 1):
-        dest.seek(0)
-        dest.truncate()
         try:
-            with client.stream("GET", url) as r:
-                r.raise_for_status()
-                for chunk in r.iter_bytes():
-                    dest.write(chunk)
-            dest.flush()
-            return
+            return call()
         except (httpx.TransportError, httpx.HTTPStatusError) as e:
             if isinstance(e, httpx.HTTPStatusError) and e.response.status_code < 500:
                 raise
@@ -165,30 +158,52 @@ def download(client: httpx.Client, url: str, dest, *, retries: int = 4, sleep=ti
             sleep(min(10 * 2**attempt, 300))
 
 
-def ingest(keys: list[str], data: Path = DATA) -> list[str]:
-    """Ingest parts that are not done yet. Returns the parts that failed (left for the next run)."""
-    failed = []
-    with httpx.Client(timeout=600, follow_redirects=True) as client:
-        for key in keys:
-            part = key.removeprefix("arsredovisningar/").removesuffix(".zip").replace("/", "_")
-            out_dir = data / "silver" / "annual_reports" / part
-            if out_dir.exists():
-                continue
-            # Not kept as bronze: 137 GB for 2020-2026, and Bolagsverket serves every part
-            # permanently, so a part can be re-fetched to reprocess it (ADR 0002).
-            t0 = time.time()
-            with tempfile.NamedTemporaryFile(suffix=".zip") as f:
-                try:
-                    download(client, f"{BASE}/{key}", f)
-                except httpx.HTTPError as e:
-                    failed.append(part)
-                    print(f"{part}: FAILED {type(e).__name__}, will retry on the next run")
-                    continue
-                tables = process_part(Path(f.name), part)
-            write_part(tables, out_dir)
-            print(f"{part}: {len({(r['org_nr'], r['fiscal_end']) for r in tables['metrics']})} reports, "
-                  f"{len(tables['facts'])} facts, {len(tables['rejects'])} rejects, {time.time() - t0:.1f}s")
-    return failed
+def download(client: httpx.Client, url: str, dest, *, sleep=time.sleep) -> None:
+    """Stream url into the open file dest; a retry starts the file over."""
+    def attempt():
+        dest.seek(0)
+        dest.truncate()
+        with client.stream("GET", url) as r:
+            r.raise_for_status()
+            for chunk in r.iter_bytes():
+                dest.write(chunk)
+        dest.flush()
+    retry(attempt, sleep=sleep)
+
+
+def ingest_one(key: str, data: Path = DATA) -> str | None:
+    """Ingest one part unless it is done. Returns the part name if it failed (left for the next run)."""
+    part = key.removeprefix("arsredovisningar/").removesuffix(".zip").replace("/", "_")
+    out_dir = data / "silver" / "annual_reports" / part
+    if out_dir.exists():
+        return None
+    # Not kept as bronze: 137 GB for 2020-2026, and Bolagsverket serves every part
+    # permanently, so a part can be re-fetched to reprocess it (ADR 0002).
+    t0 = time.time()
+    with httpx.Client(timeout=600, follow_redirects=True) as client, \
+            tempfile.NamedTemporaryFile(suffix=".zip") as f:
+        try:
+            download(client, f"{BASE}/{key}", f)
+        except httpx.HTTPError as e:
+            print(f"{part}: FAILED {type(e).__name__}, will retry on the next run", flush=True)
+            return part
+        tables = process_part(Path(f.name), part)
+    write_part(tables, out_dir)
+    print(f"{part}: {len({(r['org_nr'], r['fiscal_end']) for r in tables['metrics']})} reports, "
+          f"{len(tables['facts'])} facts, {len(tables['rejects'])} rejects, {time.time() - t0:.1f}s", flush=True)
+    return None
+
+
+def ingest(keys: list[str], workers: int = 1) -> list[str]:
+    """Ingest parts that are not done yet, `workers` parts at a time (each part is independent and
+    written by exactly one process). Returns the parts that failed."""
+    if workers == 1:
+        results = [ingest_one(k) for k in keys]
+    else:
+        from concurrent.futures import ProcessPoolExecutor
+        with ProcessPoolExecutor(workers) as pool:
+            results = list(pool.map(ingest_one, keys))
+    return [r for r in results if r]
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -197,6 +212,7 @@ def main(argv: list[str] | None = None) -> None:
     g.add_argument("--list", action="store_true")
     g.add_argument("--latest", type=int)
     g.add_argument("--year", type=int)
+    p.add_argument("--workers", type=int, default=1, help="parts processed in parallel (be kind: <= 4)")
     a = p.parse_args(argv)
     with httpx.Client(timeout=120, follow_redirects=True) as client:
         parts = list_parts(client)
@@ -210,7 +226,10 @@ def main(argv: list[str] | None = None) -> None:
             print(f"{y}: {n} parts, {s / 1e9:.1f} GB")
         return
     keys = [k for k, _ in parts]
-    ingest(keys[-a.latest:] if a.latest else [k for k in keys if k.split("/")[1] == str(a.year)])
+    failed = ingest(keys[-a.latest:] if a.latest else [k for k in keys if k.split("/")[1] == str(a.year)],
+                    a.workers)
+    if failed:
+        print(f"{len(failed)} parts failed; rerun the same command to retry them: {failed}")
 
 
 if __name__ == "__main__":
