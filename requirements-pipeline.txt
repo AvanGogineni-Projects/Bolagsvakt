@@ -1,0 +1,5 @@
+# Pipeline: downloads, parsing, scoring, publishing. Runs on a laptop or a scheduled job, never on Vercel.
+httpx>=0.28
+duckdb>=1.1
+pyarrow>=18
+scikit-learn>=1.5

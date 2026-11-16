@@ -98,13 +98,55 @@ Known limits:
 - The label is a bankruptcy recorded *after* filing. A finished bankruptcy only keeps its
   deregistration date, so its start date is approximated by the filing order.
 
+## Status: milestone 4 (the app, local)
+
+```
+pipeline output ──publish (one transaction)──► Postgres ──► FastAPI ──► React (Vite, TypeScript, Tailwind)
+                                                  ▲
+                        row-level security: each customer sees only its own watchlists
+```
+
+- **Publish:** 982,666 companies and 508,205 scores land in Postgres in ~40 s, all or nothing.
+  Companies are upserted (only changed rows are written), scores replaced, events appended. A
+  failed publish leaves last week's data untouched (tested). The database is 266 MB.
+- **Isolation in two layers:** the API checks membership, and Postgres row-level security
+  enforces it anyway. Every request runs as the signed-in user (`set local role bolagsvakt_app`
+  plus the user's id in the transaction), and the same migrations run locally and on Supabase.
+- **Nothing around the API:** Supabase serves the `public` schema over its REST API to its
+  built-in `anon`/`authenticated` roles, and anyone who signs up is `authenticated`. Those roles
+  get no grants at all (tested), so the scores can't be scraped around the API. Tests
+  prove a customer can't read, add to or delete from another's watchlist, even with a query that has no WHERE clause.
+- **Auth:** Supabase access tokens (asymmetric keys via JWKS, or HS256). A local dev login mints
+  the same kind of token.
+- **Watchlist upload:** paste or CSV (UTF-8 or Excel's cp1252), org numbers checked with the
+  Luhn digit, at most 1 MB / 5,000 rows. The reply says what happened to every row (added,
+  already watched, not in the registry, not valid).
+- **No false "saved":** I verified that FastAPI's default sends the response *before* a
+  dependency's commit runs. A failed commit came back as 200. Database dependencies now commit
+  before responding (`scope="function"`), and a failed commit is a 500.
+- **Search, measured:** org-number prefix 370 ms → 3 ms (`text_pattern_ops`), name search
+  320 ms → 35–65 ms (GiST trigram, nearest name first straight from the index).
+- **Checked in the browser:** sign in, create organisation, paste 5 numbers (4 added, 1 typo
+  caught), the risk-sorted list with reasons, the company page, search. Also checked at phone width.
+
 ## Run
 
 ```bash
-python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+python3.12 -m venv .venv && .venv/bin/pip install -e ".[pipeline,dev]"
 .venv/bin/python -m bolagsvakt.pipeline          # download this week's snapshot and apply it
 .venv/bin/python -m bolagsvakt.annual_reports --year 2024 --workers 4   # or --latest 4, or --list
 .venv/bin/python -m bolagsvakt.risk train         # -> models/risk_v1.json with its validation
 .venv/bin/python -m bolagsvakt.risk score         # -> data/gold/risk_scores.parquet
 .venv/bin/ruff check src tests && .venv/bin/pytest -q
+```
+
+The app, locally (Postgres 17, e.g. `brew install postgresql@17`):
+
+```bash
+createdb bolagsvakt && createdb bolagsvakt_test
+cp .env.example .env            # set SUPABASE_JWT_SECRET to any random 32+ character string
+.venv/bin/python -m bolagsvakt.db migrate
+.venv/bin/python -m bolagsvakt.publish
+set -a && . ./.env && set +a && .venv/bin/uvicorn bolagsvakt.api:app --app-dir src --port 8000
+cd web && npm install && npm run dev   # http://localhost:5173
 ```
