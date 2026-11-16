@@ -33,13 +33,23 @@ JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "")
 MAX_UPLOAD_BYTES = 1_000_000
 MAX_UPLOAD_ROWS = 5_000
 
-pool = ConnectionPool(DATABASE_URL, open=False, kwargs={"row_factory": dict_row})
+# prepare_threshold=None: Supabase's transaction pooler (what serverless functions should use)
+# hands each transaction to any backend, so server-side prepared statements must be off.
+# Small pool: each serverless instance holds its own, and the pooler multiplexes them.
+pool = ConnectionPool(DATABASE_URL, open=False, min_size=1, max_size=int(os.environ.get("DB_POOL_MAX", "5")),
+                      kwargs={"row_factory": dict_row, "prepare_threshold": None})
 _jwks = jwt.PyJWKClient(f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json") if SUPABASE_URL else None
+
+
+def db_pool() -> ConnectionPool:
+    """The pool, opened on first use: a serverless runtime may not run the lifespan hook."""
+    pool.open()  # no-op when already open
+    return pool
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    pool.open()
+    db_pool()
     yield
     pool.close()
 
@@ -70,7 +80,7 @@ def current_user(authorization: str = Header(default="")) -> str:
 
 
 def user_db(user_id: str = Depends(current_user)):
-    with pool.connection() as conn, as_user(conn, user_id):
+    with db_pool().connection() as conn, as_user(conn, user_id):
         yield conn
 
 
@@ -87,7 +97,7 @@ def visible_org(conn, org_id: uuid.UUID) -> None:
 
 @app.get("/health")
 def health():
-    with pool.connection() as conn:
+    with db_pool().connection() as conn:
         last = conn.execute("select published_at, registry_snapshot from publish_runs "
                             "order by id desc limit 1").fetchone()
     return {"ok": True, "last_publish": last}

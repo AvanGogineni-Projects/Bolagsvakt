@@ -110,8 +110,11 @@ pipeline output ──publish (one transaction)──► Postgres ──► Fast
   Companies are upserted (only changed rows are written), scores replaced, events appended. A
   failed publish leaves last week's data untouched (tested). The database is 266 MB.
 - **Isolation in two layers:** the API checks membership, and Postgres row-level security
-  enforces it anyway. Every request runs as the signed-in user (`set local role authenticated`
-  plus the JWT claims), exactly like Supabase, so the same policies run there unchanged. Tests
+  enforces it anyway. Every request runs as the signed-in user (`set local role bolagsvakt_app`
+  plus the user's id in the transaction), and the same migrations run locally and on Supabase.
+- **Nothing around the API:** Supabase serves the `public` schema over its REST API to its
+  built-in `anon`/`authenticated` roles, and anyone who signs up is `authenticated`. Those roles
+  get no grants at all (tested), so the scores can't be scraped around the API. Tests
   prove a customer can't read, add to or delete from another's watchlist, even with a query that has no WHERE clause.
 - **Auth:** Supabase access tokens (asymmetric keys via JWKS, or HS256). A local dev login mints
   the same kind of token.
@@ -129,7 +132,7 @@ pipeline output ──publish (one transaction)──► Postgres ──► Fast
 ## Run
 
 ```bash
-python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+python3.12 -m venv .venv && .venv/bin/pip install -e ".[pipeline,dev]"
 .venv/bin/python -m bolagsvakt.pipeline          # download this week's snapshot and apply it
 .venv/bin/python -m bolagsvakt.annual_reports --year 2024 --workers 4   # or --latest 4, or --list
 .venv/bin/python -m bolagsvakt.risk train         # -> models/risk_v1.json with its validation
@@ -142,7 +145,7 @@ The app, locally (Postgres 17, e.g. `brew install postgresql@17`):
 ```bash
 createdb bolagsvakt && createdb bolagsvakt_test
 cp .env.example .env            # set SUPABASE_JWT_SECRET to any random 32+ character string
-.venv/bin/python -m bolagsvakt.db migrate --local
+.venv/bin/python -m bolagsvakt.db migrate
 .venv/bin/python -m bolagsvakt.publish
 set -a && . ./.env && set +a && .venv/bin/uvicorn bolagsvakt.api:app --app-dir src --port 8000
 cd web && npm install && npm run dev   # http://localhost:5173

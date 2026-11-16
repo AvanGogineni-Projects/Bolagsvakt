@@ -18,7 +18,7 @@ def seed_companies(db, *org_nrs):
 
 
 def test_migrations_are_recorded_and_not_reapplied(db):
-    assert migrate(db, local=True) == []
+    assert migrate(db) == []
 
 
 def test_customers_cannot_see_each_others_watchlists(db):
@@ -46,7 +46,7 @@ def test_memberships_only_via_create_organization(db):
     with pytest.raises(psycopg.errors.InsufficientPrivilege), as_user(db, BOB):
         db.execute("insert into memberships (org_id, user_id) values (%s, %s)", [org, BOB])  # join Alice's org
     with pytest.raises(psycopg.errors.RaiseException), db.transaction():
-        db.execute("set local role authenticated")
+        db.execute("set local role bolagsvakt_app")
         db.execute("select create_organization('No user')")  # no JWT claims
 
 
@@ -84,3 +84,15 @@ def test_publish_is_atomic_idempotent_and_keeps_watchlisted_companies(db, tmp_pa
         publish(db, reg, scores, corrupt, model, snap)
     assert db.execute("select count(*) from risk_scores").fetchone()[0] == 1
     assert db.execute("select count(*) from publish_runs").fetchone()[0] == 2
+
+
+@pytest.mark.parametrize("role", ["anon", "authenticated"])
+def test_supabase_builtin_roles_get_nothing(db, role):
+    """Supabase serves `public` over its REST API as these roles; any signed-up user is
+    `authenticated`. They must not be able to read scores or touch watchlists around the API."""
+    seed_companies(db, "5560000001")
+    for sql in ["select * from risk_scores", "select * from companies", "select * from watchlist",
+                "select create_organization('x')"]:
+        with pytest.raises(psycopg.errors.InsufficientPrivilege), db.transaction():
+            db.execute(f"set local role {role}")
+            db.execute(sql)

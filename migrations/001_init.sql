@@ -67,6 +67,22 @@ create table watchlist (
 );
 
 -- ---------- row-level security ----------
+-- The API runs every user query as `bolagsvakt_app`, with the signed-in user's id in the
+-- transaction's request.jwt.claims (see db.as_user). This is our own role on purpose: Supabase
+-- serves the `public` schema over its REST API to its built-in `anon` and `authenticated`
+-- roles, and granting those roles anything would let any signed-up user download every score
+-- around the API. They get nothing here.
+do $$ begin
+    if not exists (select from pg_roles where rolname = 'bolagsvakt_app') then
+        create role bolagsvakt_app nologin;
+    end if;
+end $$;
+grant bolagsvakt_app to current_user;  -- lets the API's login role `set local role bolagsvakt_app`
+
+create function current_user_id() returns uuid language sql stable as $$
+    select (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')::uuid
+$$;
+
 alter table companies enable row level security;
 alter table risk_scores enable row level security;
 alter table company_events enable row level security;
@@ -75,17 +91,17 @@ alter table organizations enable row level security;
 alter table memberships enable row level security;
 alter table watchlist enable row level security;
 
-create policy read_all on companies for select to authenticated using (true);
-create policy read_all on risk_scores for select to authenticated using (true);
-create policy read_all on company_events for select to authenticated using (true);
-create policy read_all on publish_runs for select to authenticated using (true);
+create policy read_all on companies for select to bolagsvakt_app using (true);
+create policy read_all on risk_scores for select to bolagsvakt_app using (true);
+create policy read_all on company_events for select to bolagsvakt_app using (true);
+create policy read_all on publish_runs for select to bolagsvakt_app using (true);
 
-create policy own_memberships on memberships for select to authenticated using (user_id = auth.uid());
-create policy member_orgs on organizations for select to authenticated
-    using (id in (select org_id from memberships where user_id = auth.uid()));
-create policy member_watchlist on watchlist for all to authenticated
-    using (org_id in (select org_id from memberships where user_id = auth.uid()))
-    with check (org_id in (select org_id from memberships where user_id = auth.uid()));
+create policy own_memberships on memberships for select to bolagsvakt_app using (user_id = current_user_id());
+create policy member_orgs on organizations for select to bolagsvakt_app
+    using (id in (select org_id from memberships where user_id = current_user_id()));
+create policy member_watchlist on watchlist for all to bolagsvakt_app
+    using (org_id in (select org_id from memberships where user_id = current_user_id()))
+    with check (org_id in (select org_id from memberships where user_id = current_user_id()));
 
 -- Creating an organisation and its first owner must happen together; users can't insert
 -- memberships directly, so this is the only way in.
@@ -93,16 +109,32 @@ create function create_organization(org_name text) returns uuid
 language plpgsql security definer set search_path = public as $$
 declare new_id uuid;
 begin
-    if auth.uid() is null then
+    if current_user_id() is null then
         raise exception 'not signed in';
     end if;
     insert into organizations (name) values (org_name) returning id into new_id;
-    insert into memberships (org_id, user_id, role) values (new_id, auth.uid(), 'owner');
+    insert into memberships (org_id, user_id, role) values (new_id, current_user_id(), 'owner');
     return new_id;
 end $$;
 revoke all on function create_organization(text) from public;
 
-grant usage on schema public to authenticated;
-grant select on companies, risk_scores, company_events, publish_runs, organizations, memberships to authenticated;
-grant select, insert, update, delete on watchlist to authenticated;
-grant execute on function create_organization(text) to authenticated;
+grant usage on schema public to bolagsvakt_app;
+grant select on companies, risk_scores, company_events, publish_runs, organizations, memberships to bolagsvakt_app;
+grant select, insert, update, delete on watchlist to bolagsvakt_app;
+grant execute on function create_organization(text), current_user_id() to bolagsvakt_app;
+
+-- On Supabase, new tables in `public` are granted to anon/authenticated by default. Take that
+-- back, now and for later migrations. (No-op on a plain Postgres, where those roles don't exist.)
+do $$
+declare r text;
+begin
+    foreach r in array array['anon', 'authenticated'] loop
+        if exists (select from pg_roles where rolname = r) then
+            execute format('revoke all on all tables in schema public from %I', r);
+            execute format('revoke all on all sequences in schema public from %I', r);
+            execute format('revoke all on all functions in schema public from %I', r);
+            execute format('alter default privileges in schema public revoke all on tables from %I', r);
+            execute format('alter default privileges in schema public revoke all on functions from %I', r);
+        end if;
+    end loop;
+end $$;

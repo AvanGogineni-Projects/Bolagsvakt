@@ -1,0 +1,7 @@
+data/
+.venv/
+tests/
+models/
+migrations/
+docs/
+web/node_modules/

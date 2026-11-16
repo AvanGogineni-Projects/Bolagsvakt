@@ -1,5 +1,6 @@
 // Typed client for the Bolagsvakt API. Every call sends the signed-in user's token;
 // a 401 signs the user out so they never sit on a page that silently fails.
+import { getToken, signOut } from './auth'
 
 export type Status = 'active' | 'in_bankruptcy' | 'in_liquidation' | 'in_reconstruction' | 'deregistered'
 
@@ -62,15 +63,6 @@ export interface UploadResult {
   invalid_count: number
 }
 
-const TOKEN_KEY = 'bolagsvakt_token'
-
-export const auth = {
-  token: (): string | null => localStorage.getItem(TOKEN_KEY),
-  // shortcut: token in localStorage for the local dev login; Supabase's client manages it once connected
-  set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
-}
-
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -81,12 +73,12 @@ export class ApiError extends Error {
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
-  const token = auth.token()
+  const token = await getToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
   if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json')
   const res = await fetch(path, { ...init, headers })
   if (res.status === 401) {
-    auth.clear()
+    await signOut()
     window.location.assign('/login')
   }
   if (!res.ok) {

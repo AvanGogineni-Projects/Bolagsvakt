@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import {
-  api, auth, formatOrgNr,
+  api, formatOrgNr,
   type CompanyEvent, type CompanyPage, type Organization, type SearchHit, type UploadResult, type WatchedCompany,
 } from './api'
+import { devLogin, sendMagicLink, setDevToken, signOut, useSignedIn } from './auth'
 import { ErrorNote, RiskLevel, StatusBadge } from './ui'
 import { eventLabel } from './labels'
 
@@ -21,7 +22,9 @@ export default function App() {
 }
 
 function Signed({ children }: { children: React.ReactNode }) {
-  if (!auth.token()) return <Navigate to="/login" />
+  const signedIn = useSignedIn()
+  if (signedIn === undefined) return null
+  if (!signedIn) return <Navigate to="/login" />
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
@@ -30,7 +33,7 @@ function Signed({ children }: { children: React.ReactNode }) {
           <Search />
           <button
             className="ml-auto whitespace-nowrap text-sm text-slate-500 hover:text-slate-900"
-            onClick={() => { auth.clear(); window.location.assign('/login') }}
+            onClick={() => signOut().then(() => window.location.assign('/login'))}
           >
             Sign out
           </button>
@@ -44,15 +47,34 @@ function Signed({ children }: { children: React.ReactNode }) {
 function Login() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState<unknown>(null)
+  const [sent, setSent] = useState(false)
+  const signedIn = useSignedIn()
   const navigate = useNavigate()
+  if (signedIn) return <Navigate to="/" />  // back from the magic link
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     try {
-      auth.set((await api.devLogin(email)).access_token)
-      navigate('/')
+      if (devLogin) {
+        setDevToken((await api.devLogin(email)).access_token)
+        navigate('/')
+      } else {
+        await sendMagicLink(email)
+        setSent(true)
+      }
     } catch (err) {
       setError(err)
     }
+  }
+  if (sent) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <div className="w-full max-w-sm space-y-2 rounded-xl bg-white p-6 ring-1 ring-slate-200">
+          <h1 className="text-lg font-semibold">Check your email</h1>
+          <p className="text-sm text-slate-600">We sent a sign-in link to {email}. Open it on this device.</p>
+        </div>
+      </div>
+    )
   }
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
@@ -70,7 +92,7 @@ function Login() {
         </label>
         <ErrorNote error={error} />
         <button className="w-full rounded-md bg-slate-900 py-2 text-sm font-medium text-white hover:bg-slate-700">
-          Sign in (local dev)
+          {devLogin ? 'Sign in (local dev)' : 'Email me a sign-in link'}
         </button>
       </form>
     </div>
