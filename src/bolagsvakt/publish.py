@@ -54,6 +54,9 @@ def publish(conn: psycopg.Connection, registry: Path, scores: Path, events: Path
     event_rows = _rows("select distinct snapshot_date, org_nr, event, coalesce(detail, '') "
                        "from read_parquet($p)", p=str(events)) if events.exists() else []
     with conn.transaction():
+        # A weekly bulk load of ~1M rows outlasts limits meant for interactive queries (Supabase:
+        # 2 min). `local` lifts it for this transaction only; the API's queries keep theirs.
+        conn.execute("set local statement_timeout = 0")
         conn.execute("create temp table stage_companies (like companies) on commit drop")
         conn.execute("create temp table stage_scores (like risk_scores) on commit drop")
         conn.execute("create temp table stage_events (like company_events) on commit drop")
