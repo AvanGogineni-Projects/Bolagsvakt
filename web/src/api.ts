@@ -105,6 +105,7 @@ export const api = {
   events: (orgId: string) => call<CompanyEvent[]>(`/v1/organizations/${orgId}/events`),
   company: (orgNr: string) => call<CompanyPage>(`/v1/companies/${orgNr}`),
   search: (q: string) => call<SearchHit[]>(`/v1/search?q=${encodeURIComponent(q)}`),
+  health: () => call<{ ok: boolean; last_publish: { published_at: string; registry_snapshot: string } | null }>('/health'),
 }
 
 export const formatOrgNr = (n: string) => `${n.slice(0, 6)}-${n.slice(6)}`

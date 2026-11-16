@@ -1,1 +1,119 @@
 @import "tailwindcss";
+
+/* Bolagsvakt: a credit dossier. Paper and ink, a serif for names, a mono for numbers, and one
+   alarm colour (vermilion) that only ever means risk. Every colour is a token, so the dark
+   theme is the same components with a different palette. */
+
+@theme {
+  --font-serif: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-signal: var(--signal);
+  --color-signal-soft: var(--signal-soft);
+  --color-ochre: var(--ochre);
+  --color-ochre-soft: var(--ochre-soft);
+  --color-moss: var(--moss);
+  --color-moss-soft: var(--moss-soft);
+}
+
+:root {
+  --paper: #f3efe6;
+  --card: #fbf9f4;
+  --ink: #1a1714;
+  --ink-2: #4a443c;
+  --ink-3: #857d70;
+  --rule: #ddd5c6;
+  --rule-strong: #1a1714;
+  --signal: #c2361f;
+  --signal-soft: #f6ddd5;
+  --ochre: #a86a12;
+  --ochre-soft: #f2e4c6;
+  --moss: #3e6a4c;
+  --moss-soft: #dde8df;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --paper: #13110e;
+  --card: #1b1814;
+  --ink: #eee8dc;
+  --ink-2: #c2b9aa;
+  --ink-3: #8a8275;
+  --rule: #322d26;
+  --rule-strong: #eee8dc;
+  --signal: #f0705a;
+  --signal-soft: #3b1e18;
+  --ochre: #e2ab4f;
+  --ochre-soft: #392c15;
+  --moss: #86b896;
+  --moss-soft: #1d2a21;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #13110e;
+    --card: #1b1814;
+    --ink: #eee8dc;
+    --ink-2: #c2b9aa;
+    --ink-3: #8a8275;
+    --rule: #322d26;
+    --rule-strong: #eee8dc;
+    --signal: #f0705a;
+    --signal-soft: #3b1e18;
+    --ochre: #e2ab4f;
+    --ochre-soft: #392c15;
+    --moss: #86b896;
+    --moss-soft: #1d2a21;
+    color-scheme: dark;
+  }
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Numbers line up in columns everywhere they appear. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Small uppercase labels: the "form field" voice of a report. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+::selection {
+  background: var(--signal-soft);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
