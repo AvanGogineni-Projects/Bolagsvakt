@@ -88,12 +88,13 @@ started or concluded after the report was filed.
 
 Strongest signs: late filing, negative equity, low cash.
 
-**Scoring:** 342,600 active companies are scored on their latest report in 3 s
-(`gold/risk_scores.parquet`). 7,310 are already in bankruptcy, liquidation or reconstruction,
-and that is their first reason. 14,926 more score 5× the average or higher.
+**Scoring:** after backfilling every report filed in 2024–2026 (883 weekly parts, 1,253,798
+reports, 167 rejected filings), 508,205 active companies are scored on their latest report,
+93% of them on a 2025 or 2026 report (`gold/risk_scores.parquet`). 9,725 are already in
+bankruptcy, liquidation or reconstruction, and that is their first reason. 24,135 more score 5×
+the average or higher.
 
 Known limits:
-- Most companies are scored on their 2023 report until 2025–2026 filings are backfilled.
 - The label is a bankruptcy recorded *after* filing. A finished bankruptcy only keeps its
   deregistration date, so its start date is approximated by the filing order.
 
