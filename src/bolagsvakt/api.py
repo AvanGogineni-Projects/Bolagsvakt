@@ -191,15 +191,15 @@ def company(org_nr: str, conn=DB):
 @app.get("/v1/search")
 def search(q: str, conn=DB):
     q = q.strip()
-    if len(q) < 2:
-        return []
     digits = q.replace("-", "")
-    if digits.isdigit():
+    if digits.isdigit() and len(digits) >= 2:
         return conn.execute("select org_nr, name, city, status from companies where org_nr like %s "
                             "order by org_nr limit 20", [digits + "%"]).fetchall()
-    return conn.execute("""select org_nr, name, city, status from companies
-                           where name ilike %s order by (status = 'active') desc, similarity(name, %s) desc
-                           limit 20""", ["%" + q + "%", q]).fetchall()
+    if len(q) < 3:  # trigram indexes can't help below 3 characters; a scan of 1M names is not worth it
+        return []
+    like = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    return conn.execute("select org_nr, name, city, status from companies where name ilike %s "
+                        "order by name <-> %s limit 20", [like, q]).fetchall()
 
 
 if ENV == "dev":

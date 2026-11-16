@@ -105,6 +105,8 @@ def test_company_page_and_search(client):
     assert client.get("/v1/companies/123", headers=h).status_code == 404
     assert [r["org_nr"] for r in client.get("/v1/search", params={"q": "bygg"}, headers=h).json()] == [C]
     assert [r["org_nr"] for r in client.get("/v1/search", params={"q": A[:9]}, headers=h).json()] == [A]
+    assert client.get("/v1/search", params={"q": "ab"}, headers=h).json() == []  # too short for a name search
+    assert client.get("/v1/search", params={"q": "100%"}, headers=h).json() == []  # % is literal, not a wildcard
 
 
 def test_upload_limits(client):
