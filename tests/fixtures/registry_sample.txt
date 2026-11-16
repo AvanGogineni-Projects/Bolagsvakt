@@ -1,0 +1,6 @@
+organisationsidentitet;namnskyddslopnummer;registreringsland;organisationsnamn;organisationsform;avregistreringsdatum;avregistreringsorsak;pagandeAvvecklingsEllerOmstruktureringsforfarande;registreringsdatum;verksamhetsbeskrivning;postadress
+"5560000001$ORGNR-IDORG";"";"SE-LAND";"Alfa AB$FORETAGSNAMN-ORGNAM$2001-02-03|Alpha Ltd$FORNAMN_FRSPRAK-ORGNAM$2001-02-03";"AB-ORGFO";"";"";"";"2001-02-03";"Konsultverksamhet; IT och data.";"Storgatan 1$c/o Berg$STOCKHOLM$11122$SE-LAND"
+"5560000002$ORGNR-IDORG";"";"SE-LAND";"Beta AB$FORETAGSNAMN-ORGNAM$2010-01-01";"AB-ORGFO";"";"";"|KK-AVOMFO$2026-10-01";"2010-01-01";"Bygg.";"Box 9$$GÖTEBORG$41101$SE-LAND"
+"5560000003$ORGNR-IDORG";"";"SE-LAND";"Gamma AB$FORETAGSNAMN-ORGNAM$1999-05-05";"AB-ORGFO";"2020-06-30";"KKAV-AVORG";"";"1999-05-05";"Handel.";"$$$$"
+"5560000004$ORGNR-IDORG";"";"SE-LAND";"Delta AB$FORETAGSNAMN-ORGNAM$2015-01-01";"AB-ORGFO";"";"";"LI-AVOMFO$2026-09-01|FR-AVOMFO$2026-09-15";"2015-01-01";"Café.";"Torget 2$$MALMÖ$21122$SE-LAND"
+"196501011234$PERSON-IDORG";"1";"SE-LAND";"Anna Andersson Måleri$FORETAGSNAMN-ORGNAM$2018-01-01";"E-ORGFO";"";"";"";"2018-01-01";"Måleri.";"Vägen 3$$UPPSALA$75222$SE-LAND"

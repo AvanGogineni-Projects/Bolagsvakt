@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bolagsvakt"
+version = "0.0.1"
+description = "Weekly risk monitoring of Swedish companies from Bolagsverket open data"
+requires-python = ">=3.12"
+dependencies = ["httpx>=0.28", "duckdb>=1.1", "pyarrow>=18"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
